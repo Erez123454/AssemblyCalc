@@ -54,27 +54,27 @@ section .data
     jmp input
 %endmacro
 
-%macro freeList 1                ; arguments: a pointer to HEAD of the list we want to delete 
+; %macro freeList 1                ; arguments: a pointer to HEAD of the list we want to delete 
     
-    mov edi, %1
-    %%loop:
-        cmp byte [edi+1] , 0                     ; if we are at the last node
-        je %%remove_last_node
-        mov ebx, edi
-		mov edi, [edi+1]
-        push edi
-		push ebx
-		call free
-		add esp, 4
-        pop edi
-        jmp %%loop
+;     mov edi, %1
+;     %%loop:
+;         cmp byte [edi+1] , 0                     ; if we are at the last node
+;         je %%remove_last_node
+;         mov ebx, edi
+; 		mov edi, [edi+1]
+;         push edi
+; 		push ebx
+; 		call free
+; 		add esp, 4
+;         pop edi
+;         jmp %%loop
         
-    %%remove_last_node:
-        push edi
-		call free
-		add esp, 4
+;     %%remove_last_node:
+;         push edi
+; 		call free
+; 		add esp, 4
 
-%endmacro
+; %endmacro
 
 %macro debugPrint 1                ; arguments: a pointer to HEAD of the list we want to delete 
     
@@ -383,8 +383,7 @@ input_2:
 pop:
     mov eax, [amount]
     cmp eax, 1                         ; check there is two operands in the stack  
-    jl .error
-    jmp .continue                           ; if all conditions are set then continue
+    jge .continue                           ; if all conditions are set then continue
 
     .error:
         infficientOperandNumber
@@ -393,64 +392,74 @@ pop:
         mov  ecx , [amount]
         sub  ecx, 1
         mov  eax, [myStack +ecx*4]           ; get the head of the number
-        mov dword[isZeroLeadingFlag] , 1
+        ;mov dword[isZeroLeadingFlag] , 1
         print_loop:
-            mov bl, [eax]                     ;take the value from the current node
-            movzx ebx , bl                    ;deleting the leading zero's
+            mov ebx, [eax]                     ;take the value from the current node
+            ;movzx ebx , bl                    ;deleting the leading zero's
             push ebx
             inc byte[counter_for_pop]
 
             cmp ebx, 7                      ; check if there is only one digit
-            jle one_char_print
+            jle lessThan7
 
             cmp dword[eax+1], 0               ;check if the last node
-            je finish_print
+            je finish
 
             mov eax, [eax+1]            ; move forword the pointer
             jmp print_loop
 
-        one_char_print:
+        lessThan7:
             cmp dword[eax+1], 0              ;check if the last node
-            je finish_print
+            je finish
             push dword 0
             inc byte[counter_for_pop]
             mov eax, [eax+1]            ; move forword the pointer
             jmp print_loop
 
-        finish_print:
+        finish:
             cmp dword[counter_for_pop] , 1
-            je finish_print_last_node
+            je finishLastNode
             mov dl, [esp]
             cmp dl, 0
-            je double_zero_node
-            mov dword[isZeroLeadingFlag] , 0
+            jne continue_print
+            ;mov dword[isZeroLeadingFlag] , 0
 
-            continue_print:
+
+        double_zero_node:
+            ;cmp dword[isZeroLeadingFlag] , 0
+            ;je continue_print
+            add esp, 4
+            dec byte[counter_for_pop]
+            jmp finish
+
+
+        continue_print:
             push format_Octal
             call printf
             add esp, 8
             dec byte[counter_for_pop]
-            jmp finish_print
+            jmp finish
         
-        double_zero_node:
-            cmp dword[isZeroLeadingFlag] , 0
-            je continue_print
-            add esp, 4
-            dec byte[counter_for_pop]
-            jmp finish_print
 
-        finish_print_last_node:
+        finishLastNode:
             dec byte[counter_for_pop]
             push format_newLine
             call printf
             add esp, 8
 
         free_list:
-            mov eax, [amount]
-            dec eax
-            freeList dword [myStack +eax*4] ; free the list memory
+            ;mov eax, [amount]
+            ;dec eax
+            ;freeList dword [myStack +eax*4] ; free the list memory
             dec byte[amount]                        ; update the amount of the stack
             jmp input
+
+
+
+
+
+
+
 
 numOfDigits:
     cmp byte[amount],0
@@ -567,9 +576,9 @@ numOfDigits:
                 mov byte[edi], 10
 
             pop_void_NOD:
-                dec byte [amount]
-                mov eax, [amount]
-                freeList dword [myStack +eax*4]
+                ;dec byte [amount]
+                ;mov eax, [amount]
+                ;freeList dword [myStack +eax*4]
                 jmp input_1
 
 
@@ -731,13 +740,13 @@ andBit:
                     insert_to_stack_and:
                         mov dword [edi+1], 0
 
-                        mov edx, [amount]
-                        dec edx	            ;sign fot finish the list
-                        freeList [myStack + edx*4]
+                        ;mov edx, [amount]
+                        ;dec edx	            ;sign fot finish the list
+                        ;freeList [myStack + edx*4]
 
-                        mov edx, [amount]
-                        sub edx , 2
-                        freeList [myStack + 4*edx]
+                        ;mov edx, [amount]
+                        ;sub edx , 2
+                        ;freeList [myStack + 4*edx]
 
                     	mov edx, [amount]
                         sub edx , 2	
@@ -863,13 +872,13 @@ plus:
                     insert_to_stack_plus:
                         mov dword [edi+1], 0
 
-                        mov edx, [amount]
-                        dec edx	            ;sign fot finish the list
-                        freeList [myStack + edx*4]
+                        ;mov edx, [amount]
+                        ;dec edx	            ;sign fot finish the list
+                        ;freeList [myStack + edx*4]
 
-                        mov edx, [amount]
-                        sub edx , 2
-                        freeList [myStack + 4*edx]
+                        ;mov edx, [amount]
+                        ;sub edx , 2
+                        ;freeList [myStack + 4*edx]
 
                     	mov edx, [amount]
                         sub edx , 2	
@@ -891,13 +900,13 @@ quit:
     call printf
     add esp,8
 
-    delete_operands:
-        cmp byte [amount], 0
-        je end_of_program
-        dec byte [amount]
-        mov ecx, [amount]
-        freeList dword [myStack+ecx*4]
-        jmp delete_operands
+    ; delete_operands:
+    ;     cmp byte [amount], 0
+    ;     je end_of_program
+    ;     dec byte [amount]
+    ;     mov ecx, [amount]
+    ;     freeList dword [myStack+ecx*4]
+    ;     jmp delete_operands
 
 end_of_program:
     popad			
