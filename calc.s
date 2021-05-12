@@ -1,3 +1,4 @@
+;check
 section	.rodata	
 	format_newLine: db "%o", 10, 0	; format string
 	format_string: dd "%s", 0	; format string
