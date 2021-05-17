@@ -16,6 +16,7 @@ section .bss
 section .data
     calcString:  db 'calc: ',0 
 	DFlag: dd 0
+    is_plus_or_and: dd 0 ;0 stand for default and plus, 1 for and
     isZeroLeadingFlag: dd 0
     index_size_of_stack: dd 4
     size_of_stack: dd 5
@@ -132,17 +133,23 @@ section .data
 %endmacro
 
 %macro getOperandsFromStack 0
-        mov byte[operand1Flag] , 1              ;nullity the flag
-        mov byte[operand2Flag] , 1              ;nullity the flag
-        mov byte[bothFlag] , 2                  ;nullity the flag
+    mov byte[operand1Flag] , 1              ;nullity the flag
+    mov byte[operand2Flag] , 1              ;nullity the flag
+    mov byte[bothFlag] , 2                  ;nullity the flag
 
-        mov edx, [amount]
-        dec edx
-        mov esi , [myStack+edx*4]                      ;the first operand
-        dec edx
-        mov ebx , [myStack+edx*4]                     ;the second operand
-        mov byte [carry] , 0                         ;nullity the carry
-        mov byte [empty] , 1                             ;nullity the newNumber 
+    mov edx, [amount]
+    dec edx
+    mov esi , [myStack+edx*4]                    ;the first operand
+    dec edx
+    mov ebx , [myStack+edx*4]                    ;the second operand
+    mov byte [carry] , 0                         ;nullity the carry
+    mov byte [empty] , 1                         ;nullity the newNumber 
+%endmacro
+
+%macro moveCarryToal 0
+    mov dword[carry] , 0
+    add al , 1
+    adc dword[carry] , 0
 %endmacro
 
 section .text
@@ -639,166 +646,50 @@ duplicate:
             jmp input
 
 andBit:
-    cmp byte [amount] , 2                         ; check there is two operands in the stack  
-    jl .error
-    jmp .continue                           ; if all conditions are set then continue
+    mov dword [is_plus_or_and], 1
+    jmp plus_and_loop
+
+plus:
+    mov dword [is_plus_or_and], 0
+    jmp plus_and_loop
+
+plus_and_loop:
+    cmp byte [amount] , 2         ; check there is two operands in the stack  
+    jge .continue
+    jmp .error                    ;if all conditions are set then continue
 
     .error:
         infficientOperandNumber
 
     .continue:
-        getOperandsFromStack
+        getOperandsFromStack        ;macro:L edx<-firstArg, ebx<-secondArg
 
-
-
-        and_loop:
+        main_loop:
             mov eax , 0
             mov edx , 0
-
-            cmp byte [operand1Flag] ,  0             ;operand1 finish but operand2 didnt
-            je skip_first_number_and
-            cmp byte [operand2Flag] ,  0             ;operand2 finish but operand1 didnt
-            je skip_second_number_and
-            
+     
             mov al , [esi]                      ;node from operand1
             movzx eax , al
             mov dl , [ebx]                      ;node from operand2
             movzx edx , dl
+            cmp dword [is_plus_or_and], 0
+            je to_add
             jmp to_and
-
-            skip_first_number_and:
-                mov dl , [ebx]                      ;node from operand2
-                movzx edx , dl
-                jmp to_and
-            
-            skip_second_number_and:
-                mov al , [esi]                      ;node from operand1
-                movzx eax , al
 
             to_and:
                 and al , dl
-
-
-            add_to_list_and:
-                mov [tmp] , eax                 ;save the value
-                push 5
-                call malloc
-                add esp, 4
-                mov edx , [tmp]
-                mov [eax], dl
-
-                cmp dword [empty] , 1
-                je new_number_and
-                mov dword[edi+1], eax               ; To concatenate rhe new node ???
-                mov edi, eax                        ; edi pointing to last node ????
-                jmp forword_the_numbers_and
-                
-                new_number_and:
-                    mov byte[empty], 0
-                    mov edi, eax                                ;create pointer to the last node in the list
-                    mov dword[startNode], eax                   ;update the pointer to the first node in the list
-                    jmp forword_the_numbers_and
-
-                forword_the_numbers_and:
-                    cmp dword[esi + 1] , 0                      ;check if the last node
-                    je .first_number_finish_and
-                    mov esi , [esi + 1]
-
-                    .second_number_and:
-                        cmp dword[ebx + 1] , 0                  ;check if the last node
-                        je .second_number_finish_and
-                        mov ebx , [ebx + 1]
-
-                    .check_both_flag_and:
-                        cmp dword[operand1Flag] , 0                 ;0 if both numbers finish
-                        je .check_second_and
-                        jmp and_loop
-                        .check_second_and:
-                            cmp dword[operand2Flag] , 0                 ;0 if both numbers finish
-                            je insert_to_stack_and
-                        jmp and_loop
-
-                    .first_number_finish_and:
-                        mov dword[operand1Flag] ,0
-                        jmp .second_number_and
-
-                    .second_number_finish_and:
-                        mov dword[operand2Flag] ,0
-                        jmp .check_both_flag_and
-
-
-                    insert_to_stack_and:
-                        mov dword [edi+1], 0
-
-                        mov edx, [amount]
-                        dec edx	            ;sign fot finish the list
-                        freeList [myStack + edx*4]
-
-                        mov edx, [amount]
-                        sub edx , 2
-                        freeList [myStack + 4*edx]
-
-                    	mov edx, [amount]
-                        sub edx , 2	
-                        mov eax, [startNode]
-                        mov [myStack+4*edx] , eax
-                        dec byte[amount]
-                        cmp dword[DFlag] , 0
-                        je .continue
-                        debugPrint eax
-                        .continue:
-                        jmp input
-
-
-plus:
-    cmp byte [amount] , 2                         ; check there is two operands in the stack  
-    jl .error
-    jmp .continue                           ; if all conditions are set then continue
-
-    .error:
-        infficientOperandNumber
-
-    .continue:
-        getOperandsFromStack
-
-        plus_loop:
-            mov eax , 0
-            mov edx , 0
-
-            cmp byte [operand1Flag] ,  0             ;operand1 finish but operand2 didnt
-            je skip_first_number
-            cmp byte [operand2Flag] ,  0             ;operand2 finish but operand1 didnt
-            je skip_second_number
-            
-            mov al , [esi]                      ;node from operand1
-            movzx eax , al
-            mov dl , [ebx]                      ;node from operand2
-            movzx edx , dl
-            jmp to_add
-
-            skip_first_number:
-                mov dl , [ebx]                      ;node from operand2
-                movzx edx , dl
-                jmp to_add
-            
-            skip_second_number:
-                mov al , [esi]                      ;node from operand1
-                movzx eax , al
+                jmp add_to_list
 
             to_add:
-                clc                                     ;clean carry
-                
-                cmp byte [carry]  , 0                    ;check carry
-                je add_without_curry
-                mov dword[carry] , 0
-                add al , 1
-                adc dword[carry] , 0
-
+                clc                               ;clean carry
+                cmp byte [carry]  , 0             ;check carry
+                je .start_with_carry_zero
+                moveCarryToal                     ;macro: carry<-0, al<-1
             
-            add_without_curry:
-                add al , dl
-                jnc add_to_list
-                mov dword [carry] , 1
+                .start_with_carry_zero:
+                    add al , dl
+                    jnc add_to_list
+                    mov dword [carry] , 1
 
 
             add_to_list:
@@ -810,18 +701,18 @@ plus:
                 mov [eax], dl
 
                 cmp dword [empty] , 1
-                je new_number_plus
+                je handle_new_number
                 mov dword[edi+1], eax               ; To concatenate rhe new node ???
                 mov edi, eax                        ; edi pointing to last node ????
-                jmp forword_the_numbers
+                jmp next_number
                 
-                new_number_plus:
+                handle_new_number:
                     mov byte[empty], 0
-                    mov edi, eax                                ;create pointer to the last node in the list
-                    mov dword[startNode], eax                   ;update the pointer to the first node in the list
-                    jmp forword_the_numbers
+                    mov edi, eax                     ;create pointer to the last node in the list
+                    mov dword[startNode], eax        ;update the pointer to the first node in the list
+                    jmp next_number
 
-                forword_the_numbers:
+                next_number:
                     cmp dword[esi + 1] , 0                      ;check if the last node
                     je .first_number_finish
                     mov esi , [esi + 1]
@@ -834,11 +725,11 @@ plus:
                     .check_both_flag:
                         cmp dword[operand1Flag] , 0                 ;0 if both numbers finish
                         je .check_second
-                        jmp plus_loop
+                        jmp main_loop
                         .check_second:
-                            cmp dword[operand2Flag] , 0                 ;0 if both numbers finish
+                            cmp dword[operand2Flag] , 0           ;0 if both numbers finish
                             je check_carry
-                        jmp plus_loop
+                        jmp main_loop
 
                     .first_number_finish:
                         mov dword[operand1Flag] ,0
@@ -849,8 +740,10 @@ plus:
                         jmp .check_both_flag
 
                     check_carry:
+                        cmp dword [is_plus_or_and] ,1
+                        je push_to_stack
                         cmp dword[carry] , 0
-                        je insert_to_stack_plus
+                        je push_to_stack
                         push 5
                         call malloc
                         add esp, 4
@@ -859,11 +752,11 @@ plus:
                         mov [edi+1], eax
                         mov edi , [edi+1]
 
-                    insert_to_stack_plus:
+                    push_to_stack:
                         mov dword [edi+1], 0
 
                         mov edx, [amount]
-                        dec edx	            ;sign fot finish the list
+                        dec edx	                        ;sign fot finish the list
                         freeList [myStack + edx*4]
 
                         mov edx, [amount]
