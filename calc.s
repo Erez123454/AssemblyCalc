@@ -1,26 +1,26 @@
 section	.rodata	
-	format_newLine: db "%o", 10, 0	; format string
-	format_string: dd "%s", 0	; format string
+	format_newLine: db "%o", 10, 0	
+	format_string: dd "%s", 0	
 	format_Octal: db "%o" , 0
 
 section .bss
     inputBuff: resb 82
     buffSize: resb 82
-    startNode: resd 1 
-    myStack: resd 63  ;;--------------------------
+    starting_Node: resd 1 
+    myStack: resd 63  
     tmp: resd 1 
-    start_node: resd 1
+    head: resd 1
     an: resb 82		
 	an_final: resb 82
 
 section .data
     calcString:  db 'calc: ',0 
-	DFlag: dd 0
+	debug: dd 0
     is_plus_or_and: dd 0 ;0 stand for default and plus, 1 for and
     isZeroLeadingFlag: dd 0
     index_size_of_stack: dd 4
     size_of_stack: dd 5
-    amount: dd 0
+    quantity: dd 0
 	popCounter: dd 0  
 	counter: dd 0                                                       ; counter for argument parsing    
     number_of_ops: dd 0                                                 ; op counter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
@@ -30,12 +30,9 @@ section .data
     counter2: dd 0
 	result: dd 0
     carry: dd 0
-    
-
-    operand1Flag: dd 0
-	operand2Flag: dd 0
-	bothFlag: dd 0
-	curry: dd 0
+    firstOpFlag: dd 0
+	secOpFlag: dd 0
+	bothOpFlag: dd 0
 
 
 %macro stackOverFlow 0
@@ -145,11 +142,11 @@ section .data
 %endmacro
 
 %macro getOperandsFromStack 0
-    mov byte[operand1Flag] , 1              ;nullity the flag
-    mov byte[operand2Flag] , 1              ;nullity the flag
-    mov byte[bothFlag] , 2                  ;nullity the flag
+    mov byte[firstOpFlag] , 1              ;nullity the flag
+    mov byte[secOpFlag] , 1              ;nullity the flag
+    mov byte[bothOpFlag] , 2                  ;nullity the flag
 
-    mov edx, [amount]
+    mov edx, [quantity]
     dec edx
     mov esi , [myStack+edx*4]                    ;the first operand
     dec edx
@@ -215,13 +212,13 @@ check_debug:
 
 ; if the list size argument is second
 change_debug_flag1:
-    mov dword [DFlag], 1                    ; debug mode
+    mov dword [debug], 1                    ; debug mode
     mov ecx, [esi + 8]                      ; take the pointer to a string that represnt the list size argument
     je continue_initiate_stack
 
 ; if the list size argument is first
 change_debug_flag2:
-    mov word [DFlag], 1                    ; debug mode
+    mov word [debug], 1                    ; debug mode
     mov ecx,[esi + 4]                  ; take the pointer to a string that represnt the list size argument
     je continue_initiate_stack
 
@@ -260,7 +257,7 @@ continue_initiate_stack:
         jmp start
 
 end_initiate_debug:
-    mov dword [DFlag], 1
+    mov dword [debug], 1
 
 
 
@@ -297,14 +294,14 @@ input:
 	je numOfDigits
     dec byte [number_of_ops]                ; update counter
     
-    mov eax, [amount]
+    mov eax, [quantity]
     mov ebx, [size_of_stack]
     cmp eax, ebx                ;check if there is free space for a new number
     jge stack_overflow
 
 
 input_1:
-    cmp dword[DFlag] , 0
+    cmp dword[debug] , 0
     je input_2
     push inputBuff
     push format_string
@@ -348,13 +345,8 @@ input_2:
         mov dl, 8
         mul dl                              ;expand the first char
         add ebx, eax                        ;create one number and store in ebx
-
-
-                                            ;create new node
-        ; push 5
-        ; call malloc
-        ; add esp, 4
-        mallocNode
+                                   
+        mallocNode                          ;create new node
         mov [eax], bl
 
         cmp byte[empty], 1                  ; check if it is the first node
@@ -366,14 +358,11 @@ input_2:
         new_number:
         mov byte[empty], 0
         mov edi, eax                        ;create pointer to the last node in the list
-        mov dword[startNode], eax           ;update the pointer to the first node in the list
+        mov dword[starting_Node], eax           ;update the pointer to the first node in the list
         jmp read_buffer
 
         
         one_char_node:
-            ; push 5
-            ; call malloc
-            ; add esp, 4
             mallocNode
             mov [eax], bl
 
@@ -385,16 +374,16 @@ input_2:
 
             new_number_one_bit:
                 mov byte[empty], 0
-                mov dword[startNode], eax
+                mov dword[starting_Node], eax
                 mov edi, eax                    ;edi point to the last node
 
         insert_to_stack:
             mov byte[empty] , 1
             mov dword [edi+1] , 0
-            mov dword eax, [startNode]
-            mov ebx, [amount]
+            mov dword eax, [starting_Node]
+            mov ebx, [quantity]
             mov dword [myStack + ebx*4] , eax
-            inc byte[amount]
+            inc byte[quantity]
             jmp input
 
 
@@ -404,7 +393,7 @@ stack_overflow:
     ;jmp input
 
 pop_duplicate_stackCheck:
-    mov ebx, [amount]
+    mov ebx, [quantity]
     cmp ebx, 0
     je errorInfficientOperandNumber
     cmp byte[inputBuff], 'p'
@@ -418,7 +407,7 @@ errorInfficientOperandNumber:
 
 
 pop:
-    mov  ebx , [amount]
+    mov  ebx , [quantity]
     dec  ebx
     mov  eax, [myStack +ebx*4]           ; get the head of the number
     mov dword[isZeroLeadingFlag] , 1
@@ -466,10 +455,10 @@ pop:
     finish2:
         dec byte[popCounter]
         printOctal
-        mov eax, [amount]
+        mov eax, [quantity]
         dec eax
         freeList dword [myStack +eax*4] ; free the list memory
-        dec byte[amount]                        ; update the amount of the stack
+        dec byte[quantity]                        ; update the quantity of the stack
         jmp input
 
 
@@ -477,7 +466,7 @@ pop:
 
 duplicate:
     mov eax, [size_of_stack]
-    cmp dword[amount], eax
+    cmp dword[quantity], eax
     je .errorStackOverFlow
     jmp .keepGoing
     .errorStackOverFlow:
@@ -488,14 +477,14 @@ duplicate:
         mov ebx, 0
         mov ecx, 0
         mov edx, 0
-        mov ebx, [amount]
+        mov ebx, [quantity]
         dec ebx
         mov eax, [myStack +ebx*4]                             ; pointer to the head of the list we want to deep copy
         mov  bl, [eax]                                      ; store the number of the first node             
         mallocNode
         mov [eax], bl                                   ; copy the value to the node
-        mov dword [start_node], eax                           ; save a pointer to the head for later on
-        mov ebx, [amount]
+        mov dword [head], eax                           ; save a pointer to the head for later on
+        mov ebx, [quantity]
         dec ebx
         mov edx, [myStack +ebx*4]                         ; pointer to the head of the list we want to deep copy
 
@@ -517,29 +506,29 @@ duplicate:
         .last:
             inc eax
             mov dword [eax] , 0
-            mov ecx, [start_node]
-            mov ebx, [amount]
+            mov ecx, [head]
+            mov ebx, [quantity]
             mov edx, ecx
             mov dword[myStack + ebx*4],edx  
-            cmp dword[DFlag] , 1
+            cmp dword[debug] , 1
             jne .noD
             debugPrint edx
             .noD:
-            inc byte [amount]                  ; update the stack
+            inc byte [quantity]                  ; update the stack
             jmp input
 
 
 
 
 numOfDigits:
-    cmp byte[amount],0
+    cmp byte[quantity],0
     je .error1
     jmp .continue
 
     .error1:
         infficientOperandNumber
     .continue:
-        mov  ecx , [amount]
+        mov  ecx , [quantity]
         sub  ecx, 1
         mov  ebx, [myStack +ecx*4]           ; get the head of the number
 
@@ -562,7 +551,6 @@ numOfDigits:
 
             continue_counting:
             inc eax
-            ;inc eax
             mov edi, [edi+1]
             jmp loop
         
@@ -646,8 +634,8 @@ numOfDigits:
                 mov byte[edi], 10
 
             pop_void_NOD:
-                dec byte [amount]
-                mov eax, [amount]
+                dec byte [quantity]
+                mov eax, [quantity]
                 freeList dword [myStack +eax*4]
                 jmp input_1
 
@@ -661,7 +649,7 @@ plus:
     jmp plus_and_loop
 
 plus_and_loop:
-    cmp byte [amount] , 2         ; check there is two operands in the stack  
+    cmp byte [quantity] , 2         ; check there is two operands in the stack  
     jge .continue
     jmp .error                    ;if all conditions are set then continue
 
@@ -701,23 +689,24 @@ plus_and_loop:
 
             add_to_list:
                 mov [tmp] , eax                 ;save the value
-                ; push 5
-                ; call malloc
-                ; add esp, 4
+                mov edx, 0
                 mallocNode
                 mov edx , [tmp]
                 mov [eax], dl
 
                 cmp dword [empty] , 1
                 je handle_new_number
-                mov dword[edi+1], eax               ; To concatenate rhe new node ???
-                mov edi, eax                        ; edi pointing to last node ????
+                
+                mov dword[edi+1], eax               ; To concatenate rhe new node
+                mov edi, eax                        ; edi pointing to last node
+                clc 
                 jmp next_number
                 
                 handle_new_number:
                     mov byte[empty], 0
+                    mov edi, 0
                     mov edi, eax                     ;create pointer to the last node in the list
-                    mov dword[startNode], eax        ;update the pointer to the first node in the list
+                    mov dword[starting_Node], eax        ;update the pointer to the first node in the list
                     jmp next_number
 
                 next_number:
@@ -731,20 +720,20 @@ plus_and_loop:
                         mov ebx , [ebx + 1]
 
                     .check_both_flag:
-                        cmp dword[operand1Flag] , 0                 ;0 if both numbers finish
+                        cmp dword[firstOpFlag] , 0                 ;0 if both numbers finish
                         je .check_second
                         jmp main_loop
                         .check_second:
-                            cmp dword[operand2Flag] , 0           ;0 if both numbers finish
+                            cmp dword[secOpFlag] , 0           ;0 if both numbers finish
                             je check_carry
                         jmp main_loop
 
                     .first_number_finish:
-                        mov dword[operand1Flag] ,0
+                        mov dword[firstOpFlag] ,0
                         jmp .second_number
 
                     .second_number_finish:
-                        mov dword[operand2Flag] ,0
+                        mov dword[secOpFlag] ,0
                         jmp .check_both_flag
 
                     check_carry:
@@ -752,32 +741,32 @@ plus_and_loop:
                         je push_to_stack
                         cmp dword[carry] , 0
                         je push_to_stack
-                        ; push 5
-                        ; call malloc
-                        ; add esp, 4
+
                         mallocNode
+                        mov dword[edi+1], 0
                         mov edx , [carry]
                         mov [eax], dl
+                        mov ebx, [edi+1]
                         mov [edi+1], eax
                         mov edi , [edi+1]
 
                     push_to_stack:
                         mov dword [edi+1], 0
 
-                        mov edx, [amount]
+                        mov edx, [quantity]
                         dec edx	                        ;sign fot finish the list
                         freeList [myStack + edx*4]
 
-                        mov edx, [amount]
+                        mov edx, [quantity]
                         sub edx , 2
                         freeList [myStack + 4*edx]
 
-                    	mov edx, [amount]
+                    	mov edx, [quantity]
                         sub edx , 2	
-                        mov eax, [startNode]
+                        mov eax, [starting_Node]
                         mov [myStack+4*edx] , eax
-                        dec byte[amount]
-                        cmp dword[DFlag] , 0
+                        dec byte[quantity]
+                        cmp dword[debug] , 0
                         je .continue
                         debugPrint eax
                         .continue:
@@ -793,10 +782,10 @@ quit:
     add esp,8
 
     delete_operands:
-        cmp byte [amount], 0
+        cmp byte [quantity], 0
         je end_of_program
-        dec byte [amount]
-        mov ecx, [amount]
+        dec byte [quantity]
+        mov ecx, [quantity]
         freeList dword [myStack+ecx*4]
         jmp delete_operands
 
